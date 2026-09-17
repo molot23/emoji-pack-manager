@@ -11,7 +11,7 @@
 - **表情包**：创建、重命名、删除
 - **图片**：从相册或文件选择添加；网格浏览；长按 / 预览中删除单张
 - **持久化**：SQLite（`emoji_pack_manager.db`）+ 应用文档目录下 `stickers/<packId>/` 图片文件，杀进程后仍在
-- **设置**：关于、应用名、包名、本地存储说明（无同步）
+- **设置**：关于、应用名、包名、本地存储说明（无同步）、**检查更新**（打开 GitHub Releases）
 
 ## 环境
 
@@ -56,6 +56,9 @@ flutter build apk --debug
 | `image_picker` | 相册多选 |
 | `file_picker` | 文件选择器 |
 | `provider` | 简单状态管理 |
+| `package_info_plus` | 读取本地版本号 |
+| `http` | 请求 GitHub Releases API |
+| `url_launcher` | 打开下载页（浏览器） |
 
 ## 目录结构（摘要）
 
@@ -69,6 +72,19 @@ lib/
   ui/widgets/        # 对话框等
   app.dart / main.dart
 ```
+
+
+## 检查更新
+
+设置页提供「检查更新」：通过公开 GitHub API（无需登录 / Token）读取
+[`releases/latest`](https://github.com/molot23/emoji-pack-manager/releases/latest)，
+与本地 `pubspec` 版本（`package_info_plus`）比较。
+
+- 有新版本 → 对话框「发现新版本」，可「前往下载」打开 Releases 页面
+- 已是最新 → SnackBar「已是最新版」
+- 网络/API 失败 → 中文错误提示
+
+当前版本：`0.1.1+2`（versionName `0.1.1`，versionCode `2`）。
 
 ## 说明
 

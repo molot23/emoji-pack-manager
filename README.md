@@ -1,21 +1,23 @@
 # 表情包管理（安卓）
 
-本地-only 表情相册与标签管理器。数据全部保存在手机本地，**不支持** WebDAV、云同步、Windows 或微信分享。
+本地-only 表情相册与标签管理器。数据全部保存在手机本地，**不支持** WebDAV、云同步或 Windows。
 
 - 应用名：表情包管理
 - 包名：`com.emojipack.manager`
 - 技术：Flutter + Material 3 + sqflite
-- 当前版本：`0.2.0+3`
+- 当前版本：`0.2.1+4`
 
 ## 功能（相册 + 标签）
 
-- **统一相册**：所有表情在一个大缩略图网格中浏览（不再以「表情包」为一级结构）
+- **统一相册**：所有表情在缩略图网格中浏览（不再以「表情包」为一级结构）
+- **网格列数**：设置页可切换主页每行 3 / 4 / 5 / 6 列（默认 4，SharedPreferences 持久化）
 - **标签**：每张表情可有多个标签；主页按标签筛选（多选为 AND）
 - **排序**：最新优先 / 最旧优先 / 按文件名
 - **添加**：从相册或文件选择；删除；编辑标签
-- **全屏查看**：左右滑动浏览，支持捏合缩放；可编辑标签或删除
+- **分享**：主页长按菜单 / 磁贴「⋯」菜单，以及全屏查看页顶部「分享」，通过系统分享面板发送图片文件（`image/*`）
+- **全屏查看**：左右滑动浏览，支持捏合缩放；可分享、编辑标签或删除
 - **持久化**：SQLite（`emoji_pack_manager.db`）+ 应用文档目录下 `stickers/` 图片文件
-- **设置**：关于、包名、本地存储说明、**检查更新**（GitHub Releases API）
+- **设置**：网格列数、关于、包名、本地存储说明、**检查更新**（GitHub Releases API）
 
 ## 从旧版迁移
 
@@ -66,6 +68,8 @@ flutter build apk --release --split-per-abi
 | `image_picker` | 相册多选 |
 | `file_picker` | 文件选择器 |
 | `provider` | 简单状态管理 |
+| `shared_preferences` | 网格列数等偏好 |
+| `share_plus` | 系统分享面板发送图片 |
 | `package_info_plus` | 读取本地版本号 |
 | `http` | 请求 GitHub Releases API |
 | `url_launcher` | 打开下载页（浏览器） |
@@ -76,7 +80,7 @@ flutter build apk --release --split-per-abi
 lib/
   domain/models/     # Sticker、Tag
   data/database/     # sqflite（含 v1→v2 迁移）
-  data/services/     # 图片文件存储、检查更新
+  data/services/     # 图片文件存储、检查更新、分享
   data/repositories/ # StickerRepository
   ui/screens/        # 相册首页、全屏查看、设置
   ui/widgets/        # 标签编辑、确认对话框
@@ -99,4 +103,4 @@ lib/
 ## 说明
 
 - 卸载应用会清除本地数据库与图片。
-- 本版本刻意不做同步与分享。
+- 本版本支持系统分享图片；不做云同步。

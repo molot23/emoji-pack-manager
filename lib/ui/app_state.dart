@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/repositories/sticker_repository.dart';
 import '../domain/models/sticker.dart';
@@ -12,10 +13,15 @@ class AppState extends ChangeNotifier {
 
   final StickerRepository _repo;
 
+  static const prefsGridColumnsKey = 'grid_columns';
+  static const defaultGridColumns = 4;
+  static const allowedGridColumns = [3, 4, 5, 6];
+
   List<Sticker> stickers = [];
   List<Tag> allTags = [];
   Set<String> selectedTagIds = {};
   StickerSort sort = StickerSort.newest;
+  int gridColumns = defaultGridColumns;
   bool loading = false;
   String? error;
 
@@ -24,6 +30,7 @@ class AppState extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
+      await _loadPrefs();
       allTags = await _repo.getAllTags();
       stickers = await _repo.getStickers(
         tagIds: selectedTagIds,
@@ -35,6 +42,24 @@ class AppState extends ChangeNotifier {
       loading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getInt(prefsGridColumnsKey);
+    if (stored != null && allowedGridColumns.contains(stored)) {
+      gridColumns = stored;
+    } else {
+      gridColumns = defaultGridColumns;
+    }
+  }
+
+  Future<void> setGridColumns(int value) async {
+    if (!allowedGridColumns.contains(value) || gridColumns == value) return;
+    gridColumns = value;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(prefsGridColumnsKey, value);
   }
 
   Future<void> setSort(StickerSort value) async {

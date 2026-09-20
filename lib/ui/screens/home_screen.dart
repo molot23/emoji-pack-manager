@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/services/share_service.dart';
 import '../../domain/models/sticker.dart';
 import '../app_state.dart';
 import '../widgets/name_dialog.dart';
@@ -21,6 +22,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _imagePicker = ImagePicker();
+  final _shareService = ShareService();
   final Map<String, String> _absCache = {};
 
   @override
@@ -122,6 +124,18 @@ class _HomeScreenState extends State<HomeScreen> {
     await state.setStickerTags(sticker.id, result);
   }
 
+  Future<void> _shareSticker(Sticker sticker) async {
+    try {
+      final path = await _abs(sticker.relativePath);
+      await _shareService.shareImageFile(path);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享失败：$e')),
+      );
+    }
+  }
+
   Future<void> _deleteSticker(Sticker sticker) async {
     final ok = await showConfirmDialog(
       context,
@@ -133,6 +147,51 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('已删除')),
+    );
+  }
+
+  Future<void> _showStickerActions(Sticker sticker) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.share_outlined),
+                title: const Text('分享'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _shareSticker(sticker);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.label_outline),
+                title: const Text('编辑标签'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _editTags(sticker);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.delete_outline,
+                    color: Theme.of(ctx).colorScheme.error),
+                title: Text(
+                  '删除',
+                  style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteSticker(sticker);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -284,14 +343,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ];
     }
 
+    final spacing = state.gridColumns >= 5 ? 6.0 : 10.0;
     return [
       SliverPadding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
         sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: state.gridColumns,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
             childAspectRatio: 1,
           ),
           delegate: SliverChildBuilderDelegate(
@@ -300,7 +360,10 @@ class _HomeScreenState extends State<HomeScreen> {
               return _StickerTile(
                 sticker: sticker,
                 absFuture: _abs(sticker.relativePath),
+                compact: state.gridColumns >= 5,
                 onTap: () => _openViewer(index),
+                onLongPress: () => _showStickerActions(sticker),
+                onShare: () => _shareSticker(sticker),
                 onEditTags: () => _editTags(sticker),
                 onDelete: () => _deleteSticker(sticker),
               );
@@ -317,14 +380,20 @@ class _StickerTile extends StatelessWidget {
   const _StickerTile({
     required this.sticker,
     required this.absFuture,
+    required this.compact,
     required this.onTap,
+    required this.onLongPress,
+    required this.onShare,
     required this.onEditTags,
     required this.onDelete,
   });
 
   final Sticker sticker;
   final Future<String> absFuture;
+  final bool compact;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
+  final VoidCallback onShare;
   final VoidCallback onEditTags;
   final VoidCallback onDelete;
 
@@ -333,11 +402,11 @@ class _StickerTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Material(
       color: scheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(compact ? 12 : 16),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        onLongPress: onEditTags,
+        onLongPress: onLongPress,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -367,8 +436,10 @@ class _StickerTile extends StatelessWidget {
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 4 : 8,
+                    vertical: compact ? 4 : 6,
+                  ),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
@@ -380,17 +451,17 @@ class _StickerTile extends StatelessWidget {
                     sticker.tags.map((t) => t.name).join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: compact ? 10 : 12,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
               ),
             Positioned(
-              top: 4,
-              right: 4,
+              top: 2,
+              right: 2,
               child: PopupMenuButton<String>(
                 tooltip: '更多',
                 padding: EdgeInsets.zero,
@@ -400,16 +471,45 @@ class _StickerTile extends StatelessWidget {
                     color: Colors.black45,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(Icons.more_vert,
-                      color: Colors.white, size: 18),
+                  child: Icon(
+                    Icons.more_vert,
+                    color: Colors.white,
+                    size: compact ? 16 : 18,
+                  ),
                 ),
                 onSelected: (value) {
+                  if (value == 'share') onShare();
                   if (value == 'tags') onEditTags();
                   if (value == 'delete') onDelete();
                 },
                 itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'tags', child: Text('编辑标签')),
-                  PopupMenuItem(value: 'delete', child: Text('删除')),
+                  PopupMenuItem(
+                    value: 'share',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.share_outlined),
+                      title: Text('分享'),
+                      dense: true,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'tags',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.label_outline),
+                      title: Text('编辑标签'),
+                      dense: true,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.delete_outline),
+                      title: Text('删除'),
+                      dense: true,
+                    ),
+                  ),
                 ],
               ),
             ),

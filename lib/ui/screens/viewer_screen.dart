@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/services/share_service.dart';
 import '../../domain/models/sticker.dart';
 import '../app_state.dart';
 import '../widgets/name_dialog.dart';
@@ -27,6 +28,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   late final PageController _pageController;
   late int _index;
   final Map<String, String> _absCache = {};
+  final _shareService = ShareService();
   bool _uiVisible = true;
 
   @override
@@ -78,6 +80,20 @@ class _ViewerScreenState extends State<ViewerScreen> {
     await state.setStickerTags(sticker.id, result);
     if (!mounted) return;
     setState(() {});
+  }
+
+  Future<void> _share() async {
+    final sticker = _current;
+    if (sticker == null) return;
+    try {
+      final path = await _abs(sticker.relativePath);
+      await _shareService.shareImageFile(path);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('分享失败：$e')),
+      );
+    }
   }
 
   Future<void> _delete() async {
@@ -191,6 +207,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        IconButton(
+                          tooltip: '分享',
+                          icon: const Icon(Icons.share, color: Colors.white),
+                          onPressed: _share,
+                        ),
                         IconButton(
                           tooltip: '编辑标签',
                           icon: const Icon(Icons.label_outline,

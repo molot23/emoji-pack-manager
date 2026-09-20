@@ -1,7 +1,7 @@
 name: emoji_pack_manager
 description: 表情包管理 — 本地表情相册与标签管理
 publish_to: 'none'
-version: 0.2.0+3
+version: 0.2.1+4
 
 environment:
   sdk: ^3.13.2
@@ -20,6 +20,8 @@ dependencies:
   package_info_plus: ^10.2.1
   url_launcher: ^6.3.2
   http: ^1.6.0
+  shared_preferences: ^2.5.5
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:

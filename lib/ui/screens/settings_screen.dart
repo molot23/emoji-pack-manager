@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/services/update_check_service.dart';
+import '../app_state.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -128,6 +130,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final state = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
       body: ListView(
@@ -158,6 +161,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.grid_view_outlined, color: scheme.primary),
+                      const SizedBox(width: 12),
+                      Text(
+                        '主页网格列数',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '当前：每行 ${state.gridColumns} 列（默认 ${AppState.defaultGridColumns}）',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<int>(
+                    segments: [
+                      for (final n in AppState.allowedGridColumns)
+                        ButtonSegment<int>(
+                          value: n,
+                          label: Text('$n'),
+                        ),
+                    ],
+                    selected: {state.gridColumns},
+                    onSelectionChanged: (sel) {
+                      if (sel.isEmpty) return;
+                      context.read<AppState>().setGridColumns(sel.first);
+                    },
                   ),
                 ],
               ),

@@ -2,28 +2,33 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import '../data/repositories/pack_repository.dart';
-import '../domain/models/pack.dart';
+import '../data/repositories/sticker_repository.dart';
 import '../domain/models/sticker.dart';
+import '../domain/models/tag.dart';
 
 class AppState extends ChangeNotifier {
-  AppState({PackRepository? repository})
-      : _repo = repository ?? PackRepository();
+  AppState({StickerRepository? repository})
+      : _repo = repository ?? StickerRepository();
 
-  final PackRepository _repo;
+  final StickerRepository _repo;
 
-  List<Pack> packs = [];
-  List<Sticker> currentStickers = [];
-  Pack? currentPack;
+  List<Sticker> stickers = [];
+  List<Tag> allTags = [];
+  Set<String> selectedTagIds = {};
+  StickerSort sort = StickerSort.newest;
   bool loading = false;
   String? error;
 
-  Future<void> loadPacks() async {
+  Future<void> load() async {
     loading = true;
     error = null;
     notifyListeners();
     try {
-      packs = await _repo.getAllPacks();
+      allTags = await _repo.getAllTags();
+      stickers = await _repo.getStickers(
+        tagIds: selectedTagIds,
+        sort: sort,
+      );
     } catch (e) {
       error = '加载失败：$e';
     } finally {
@@ -32,66 +37,45 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> createPack(String name) async {
-    if (name.trim().isEmpty) {
-      throw ArgumentError('名称不能为空');
-    }
-    await _repo.createPack(name);
-    await loadPacks();
+  Future<void> setSort(StickerSort value) async {
+    if (sort == value) return;
+    sort = value;
+    await load();
   }
 
-  Future<void> renamePack(String id, String name) async {
-    if (name.trim().isEmpty) {
-      throw ArgumentError('名称不能为空');
+  Future<void> toggleTagFilter(String tagId) async {
+    if (selectedTagIds.contains(tagId)) {
+      selectedTagIds = {...selectedTagIds}..remove(tagId);
+    } else {
+      selectedTagIds = {...selectedTagIds, tagId};
     }
-    await _repo.renamePack(id, name);
-    await loadPacks();
-    if (currentPack?.id == id) {
-      currentPack = await _repo.getPack(id);
-      notifyListeners();
-    }
+    await load();
   }
 
-  Future<void> deletePack(String id) async {
-    await _repo.deletePack(id);
-    if (currentPack?.id == id) {
-      currentPack = null;
-      currentStickers = [];
-    }
-    await loadPacks();
+  Future<void> clearTagFilters() async {
+    if (selectedTagIds.isEmpty) return;
+    selectedTagIds = {};
+    await load();
   }
 
-  Future<void> openPack(Pack pack) async {
-    currentPack = pack;
-    loading = true;
-    notifyListeners();
-    try {
-      currentStickers = await _repo.getStickers(pack.id);
-      currentPack = await _repo.getPack(pack.id);
-    } finally {
-      loading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> refreshCurrentPack() async {
-    if (currentPack == null) return;
-    currentStickers = await _repo.getStickers(currentPack!.id);
-    currentPack = await _repo.getPack(currentPack!.id);
-    await loadPacks();
-  }
-
-  Future<void> addImages(List<File> files) async {
-    if (currentPack == null) return;
+  Future<void> addImages(
+    List<File> files, {
+    List<String> tagNames = const [],
+  }) async {
     for (final f in files) {
-      await _repo.addStickerFromFile(packId: currentPack!.id, source: f);
+      await _repo.addStickerFromFile(source: f, tagNames: tagNames);
     }
-    await refreshCurrentPack();
+    await load();
   }
 
   Future<void> deleteSticker(Sticker sticker) async {
     await _repo.deleteSticker(sticker);
-    await refreshCurrentPack();
+    await load();
+  }
+
+  Future<void> setStickerTags(String stickerId, List<String> tagNames) async {
+    await _repo.setStickerTags(stickerId, tagNames);
+    await load();
   }
 
   Future<String> absolutePath(String relativePath) {

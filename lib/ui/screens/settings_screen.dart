@@ -170,7 +170,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const ListTile(
                   leading: Icon(Icons.info_outline),
                   title: Text('关于'),
-                  subtitle: Text('本地表情包 / 贴纸包管理器（安卓 v1）'),
+                  subtitle: Text('本地表情相册 · 标签管理（安卓）'),
                 ),
                 const Divider(height: 1),
                 const ListTile(

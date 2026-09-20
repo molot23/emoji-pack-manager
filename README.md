@@ -1,17 +1,30 @@
-# 表情包管理（安卓 v1）
+# 表情包管理（安卓）
 
-本地-only 表情包 / 贴纸包管理器。数据全部保存在手机本地，**不支持** WebDAV、云同步或微信分享。
+本地-only 表情相册与标签管理器。数据全部保存在手机本地，**不支持** WebDAV、云同步、Windows 或微信分享。
 
 - 应用名：表情包管理
 - 包名：`com.emojipack.manager`
 - 技术：Flutter + Material 3 + sqflite
+- 当前版本：`0.2.0+3`
 
-## 功能
+## 功能（相册 + 标签）
 
-- **表情包**：创建、重命名、删除
-- **图片**：从相册或文件选择添加；网格浏览；长按 / 预览中删除单张
-- **持久化**：SQLite（`emoji_pack_manager.db`）+ 应用文档目录下 `stickers/<packId>/` 图片文件，杀进程后仍在
-- **设置**：关于、应用名、包名、本地存储说明（无同步）、**检查更新**（打开 GitHub Releases）
+- **统一相册**：所有表情在一个大缩略图网格中浏览（不再以「表情包」为一级结构）
+- **标签**：每张表情可有多个标签；主页按标签筛选（多选为 AND）
+- **排序**：最新优先 / 最旧优先 / 按文件名
+- **添加**：从相册或文件选择；删除；编辑标签
+- **全屏查看**：左右滑动浏览，支持捏合缩放；可编辑标签或删除
+- **持久化**：SQLite（`emoji_pack_manager.db`）+ 应用文档目录下 `stickers/` 图片文件
+- **设置**：关于、包名、本地存储说明、**检查更新**（GitHub Releases API）
+
+## 从旧版迁移
+
+从 `0.1.x`（表情包模式）升级到 `0.2.0` 时：
+
+- 所有贴纸合并进同一相册
+- 原表情包名称会尽量写成该贴纸的初始标签
+- 图片文件路径保持不变
+- 全新安装直接使用相册 + 标签结构
 
 ## 环境
 
@@ -22,28 +35,25 @@
 - Android SDK 36 / Build-Tools 36.0.0
 - JDK 17
 
-若在本机开发，请先安装 Flutter 与 Android SDK，并确保 `flutter doctor` 中 Android toolchain 可用。
-
 ## 运行（调试）
 
 ```bash
-cd /workspace/emoji-pack-manager   # 或你的项目路径
+cd /workspace/emoji-pack-manager
+source /workspace/tools/env.sh   # 或自行配置 PATH
 flutter pub get
-flutter run                        # 连接真机或模拟器
+flutter run
 ```
 
 ## 构建 APK
 
 ```bash
-flutter build apk --debug
+flutter build apk --release --split-per-abi
 ```
 
-产物路径：
+产物示例：
 
-- 默认：`build/app/outputs/flutter-apk/app-debug.apk`
-- 便捷副本：`emoji-pack-manager-debug.apk`（项目根目录，debug 约 153MB）
-
-将 APK 传到安卓手机后安装即可（可能需允许「未知来源」）。
+- `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
+- 便捷副本：`emoji-pack-manager-arm64-release.apk`（项目根目录）
 
 ## 主要依赖
 
@@ -64,29 +74,29 @@ flutter build apk --debug
 
 ```
 lib/
-  domain/models/     # Pack、Sticker
-  data/database/     # sqflite
-  data/services/     # 图片文件存储
-  data/repositories/ # 业务仓储
-  ui/screens/        # 首页、详情、设置
-  ui/widgets/        # 对话框等
+  domain/models/     # Sticker、Tag
+  data/database/     # sqflite（含 v1→v2 迁移）
+  data/services/     # 图片文件存储、检查更新
+  data/repositories/ # StickerRepository
+  ui/screens/        # 相册首页、全屏查看、设置
+  ui/widgets/        # 标签编辑、确认对话框
   app.dart / main.dart
 ```
 
+## 数据模型
+
+- `stickers`：id、file_name、relative_path、created_at
+- `tags`：id、name（唯一）、created_at
+- `sticker_tags`：多对多关联
+- 新图片保存在 `stickers/album/`；旧版包目录下的文件仍可按原 relative_path 访问
 
 ## 检查更新
 
-设置页提供「检查更新」：通过公开 GitHub API（无需登录 / Token）读取
+设置页「检查更新」：通过公开 GitHub API 读取
 [`releases/latest`](https://github.com/molot23/emoji-pack-manager/releases/latest)，
-与本地 `pubspec` 版本（`package_info_plus`）比较。
-
-- 有新版本 → 对话框「发现新版本」，可「前往下载」打开 Releases 页面
-- 已是最新 → SnackBar「已是最新版」
-- 网络/API 失败 → 中文错误提示
-
-当前版本：`0.1.1+2`（versionName `0.1.1`，versionCode `2`）。
+与本地版本比较。
 
 ## 说明
 
 - 卸载应用会清除本地数据库与图片。
-- 本版本为本地 v1，刻意不做同步与分享。
+- 本版本刻意不做同步与分享。

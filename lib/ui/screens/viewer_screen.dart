@@ -47,7 +47,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   List<Sticker> get _stickers {
-    // Prefer live list from AppState when ids still match.
     final live = context.read<AppState>().stickers;
     if (live.isEmpty) return widget.stickers;
     return live;
@@ -71,13 +70,30 @@ class _ViewerScreenState extends State<ViewerScreen> {
     final sticker = _current;
     if (sticker == null) return;
     final state = context.read<AppState>();
-    final result = await showTagsEditorDialog(
+    final result = await showTagsEditorSheet(
       context,
       initialTags: sticker.tags,
       suggestions: state.allTags,
+      recentTagNames: state.recentTagNames,
     );
     if (result == null || !mounted) return;
     await state.setStickerTags(sticker.id, result);
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _removeTag(String name) async {
+    final sticker = _current;
+    if (sticker == null) return;
+    await context.read<AppState>().removeTagFromSticker(sticker.id, name);
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _quickAddTag(String name) async {
+    final sticker = _current;
+    if (sticker == null) return;
+    await context.read<AppState>().addTagToSticker(sticker.id, name);
     if (!mounted) return;
     setState(() {});
   }
@@ -120,6 +136,83 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (_pageController.hasClients) {
       _pageController.jumpToPage(_index);
     }
+  }
+
+  Widget _buildTagBar(Sticker current, AppState state) {
+    final currentNames = current.tags.map((t) => t.name).toSet();
+    final recent = state.recentTagNames
+        .where((n) => n.trim().isNotEmpty && !currentNames.contains(n))
+        .take(6)
+        .toList();
+
+    return Material(
+      color: Colors.black54,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (final tag in current.tags)
+                  InputChip(
+                    label: Text(tag.name),
+                    onDeleted: () => _removeTag(tag.name),
+                    deleteIconColor: Colors.white70,
+                    backgroundColor: Colors.white24,
+                    labelStyle: const TextStyle(color: Colors.white),
+                    side: BorderSide.none,
+                  ),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 18, color: Colors.white),
+                  label: const Text('添加', style: TextStyle(color: Colors.white)),
+                  backgroundColor: Colors.white24,
+                  side: BorderSide.none,
+                  onPressed: _editTags,
+                ),
+                if (current.tags.isEmpty)
+                  const Text(
+                    '无标签',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+              ],
+            ),
+            if (recent.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                '最近',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white70,
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final name in recent)
+                    ActionChip(
+                      avatar: const Icon(Icons.history,
+                          size: 16, color: Colors.white70),
+                      label: Text(
+                        name,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.white12,
+                      side: BorderSide.none,
+                      onPressed: () => _quickAddTag(name),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -193,17 +286,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
                       '${safeIndex + 1} / ${list.length}',
                       style: const TextStyle(color: Colors.white),
                     ),
-                    subtitle: current.tags.isEmpty
-                        ? const Text(
-                            '无标签',
-                            style: TextStyle(color: Colors.white70),
-                          )
-                        : Text(
-                            current.tags.map((t) => t.name).join(' · '),
-                            style: const TextStyle(color: Colors.white70),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -228,6 +310,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     ),
                   ),
                 ),
+              ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: _buildTagBar(current, state),
               ),
             ),
           ],

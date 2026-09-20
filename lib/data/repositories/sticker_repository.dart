@@ -22,6 +22,7 @@ class StickerRepository {
   Future<List<Sticker>> getStickers({
     Set<String> tagIds = const {},
     StickerSort sort = StickerSort.newest,
+    bool untaggedOnly = false,
   }) async {
     final db = await _db.database;
     final orderBy = switch (sort) {
@@ -31,7 +32,14 @@ class StickerRepository {
     };
 
     List<Map<String, Object?>> rows;
-    if (tagIds.isEmpty) {
+    if (untaggedOnly) {
+      rows = await db.rawQuery('''
+        SELECT s.*
+        FROM stickers s
+        WHERE s.id NOT IN (SELECT DISTINCT sticker_id FROM sticker_tags)
+        ORDER BY $orderBy
+      ''');
+    } else if (tagIds.isEmpty) {
       rows = await db.rawQuery('''
         SELECT s.*
         FROM stickers s
@@ -217,6 +225,32 @@ class StickerRepository {
       throw StateError('贴纸不存在');
     }
     return sticker;
+  }
+
+  /// Add tags to multiple stickers without removing existing ones.
+  Future<void> addTagsToStickers(
+    List<String> stickerIds,
+    List<String> tagNames,
+  ) async {
+    if (stickerIds.isEmpty) return;
+    final uniqueNames = <String>{};
+    final tags = <Tag>[];
+    for (final raw in tagNames) {
+      final name = raw.trim();
+      if (name.isEmpty || !uniqueNames.add(name)) continue;
+      tags.add(await getOrCreateTag(name));
+    }
+    if (tags.isEmpty) return;
+    final db = await _db.database;
+    for (final stickerId in stickerIds) {
+      for (final tag in tags) {
+        await db.insert(
+          'sticker_tags',
+          {'sticker_id': stickerId, 'tag_id': tag.id},
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    }
   }
 
   Future<void> deleteTag(String tagId) async {
